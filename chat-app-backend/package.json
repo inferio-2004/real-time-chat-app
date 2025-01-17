@@ -1,0 +1,27 @@
+{
+  "name": "backend_exp_tracker",
+  "version": "1.0.0",
+  "description": "an expense tracker app",
+  "main": "server.js",
+  "scripts": {
+    "test": "jest",
+    "start": "concurrently \"nodemon server.js\" \"nodemon SocketServer.js\"",
+    "dev": "npm run start"
+  },
+  "author": "aniruth",
+  "license": "ISC",
+  "dependencies": {
+    "@redis/client": "^1.6.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "nanoid": "^3.3.8",
+    "nodemon": "^3.1.9",
+    "pg": "^8.13.1",
+    "redis": "^4.7.0",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.1"
+  }
+}

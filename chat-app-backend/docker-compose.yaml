@@ -1,0 +1,29 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:latest
+    container_name: chat-app-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mysecretpassword
+      POSTGRES_DB: chat_app_db
+    ports: 
+      - 5432:5432
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - chat-app-network
+
+  redis:
+    image: redis:latest
+    container_name: chat-app-redis
+    restart: always
+    ports:
+      - 6379:6379
+    networks:
+      - chat-app-network
+
+networks:
+  chat-app-network:
+    driver: bridge
