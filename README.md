@@ -24,6 +24,7 @@
 ### Communication Features
 >- **💬 Real-time Messaging**: Instant message delivery using Socket.IO
 >- **👥 Multi-user Support**: Search and chat with multiple users
+>- **� Online User Tracking**: Redis-based session management for real-time user status
 >- **📱 Responsive Design**: Works on desktop and mobile devices
 >- **🔄 Persistent Sessions**: Login state maintained across browser sessions
 >- **📝 Chat History**: Previous conversations stored and retrievable
@@ -31,6 +32,7 @@
 ### Technical Features
 >- **🏗️ Scalable Architecture**: Separate frontend and backend services
 >- **🐳 Docker Database**: PostgreSQL database containerized with Docker
+>- **🔴 Redis Session Management**: Track online users and socket session IDs
 >- **🌐 CORS Enabled**: Cross-origin resource sharing configured
 >- **📊 Real-time Status**: Online/offline status tracking
 >- **🔧 Environment Configuration**: Configurable via environment variables
@@ -50,6 +52,7 @@
 - **Node.js** - Server runtime
 - **Express.js** - Web application framework
 - **Socket.IO** - Real-time bidirectional communication
+- **Redis** - Session management and online user tracking
 - **PostgreSQL** - Database for user data and messages
 - **bcrypt** - Password hashing
 - **nanoid** - Unique ID generation
@@ -57,6 +60,7 @@
 
 ### Infrastructure
 - **Docker** - Database containerization
+- **Redis** - In-memory data store for user sessions and socket IDs
 - **CORS** - Cross-origin resource sharing
 - **Environment Variables** - Configuration management
 
@@ -226,9 +230,6 @@ chat_app/
 4. Push to the branch
 5. Create a Pull Request
 
-## 📝 License
-
-This project is licensed under the MIT License.
 
 ## 🔧 Troubleshooting
 
@@ -238,6 +239,3 @@ This project is licensed under the MIT License.
 2. **Port Already in Use**: Check if ports 3000, 4000, 5000, or 5432 are already in use
 3. **Environment Variables**: Ensure `.env` file is properly configured
 4. **Key Decryption Fails**: Clear localStorage and re-register if keys are corrupted
-
-### Debug Mode
-Enable verbose logging by setting `DEBUG=true` in your environment variables.
