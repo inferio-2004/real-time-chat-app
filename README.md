@@ -1,79 +1,7 @@
 # Real-Time Chat Application
 
 > ## 📝 Overview  
-> A scalable real-time chat application built with modern technologies to provide live messaging, user authentication, and online/offline status tracking. Designed with a responsive UI and containerized for easy deployment.
-
-## 🛠️ Features  
-> - **Real-Time Messaging**: Instant communication using WebSockets via Socket.IO.  
-> - **User Authentication**: Secure login and registration system.  
-> - **Online Status Updates**: Tracks user availability with Redis.  
-> - **Persistent Chat History**: Stores messages and conversation data in PostgreSQL.  
-> - **Scalable and Portable**: Dockerized for seamless deployment and scaling.  
-> - **Enhanced User Experience**: Includes chat search, unread message indicators, and a responsive interface.  
-
-## 📖 Tech Stack  
-- **Frontend**: React, Chat UI Kit  
-- **Backend**: Node.js, Express.js  
-- **Real-Time Communication**: Socket.IO  
-- **Database**: PostgreSQL  
-- **Caching and Status Management**: Redis  
-- **Containerization**: Docker  
-
-## 🚀 Getting Started  
-
-### Prerequisites  
-+ Ensure you have the following installed:  
-    - Node.js  
-    - Docker  
-    - React
-  
-### Installation  
-1. Clone the Repository:
-   ```bash
-   git clone https://github.com/yourusername/real-time-chat-app.git
-   cd real-time-chat-app
-   ```
-2. Run the Docker:
-   ```bash
-   docker-compose up
-   ```
-3. **Start Backend**:
-   ```bash
-   cd backend
-   npm install
-   npm start
-   ```
-4. **Start Frontend**:
-   ```bash
-   cd frontend
-   npm install
-   npm start
-   ```
-## 📂 Project Structure
-  ```bash
-   root/
-      ├── backend/
-      │   ├── msg_db.js          # Database queries for messages
-      │   ├── SocketServer.js    # Socket.IO server logic
-      │   ├── server.js          # Express server setup
-      │   ├── search.js          # Search functionality
-      │   ├── login_register.js  # User login and registration
-      │   ├── init.sql           # SQL file for database initialization
-      │   ├── docker-compose.yaml # Docker Compose configuration
-      ├── frontend/
-      │   ├── src/
-      │   │   ├── App.css        # Stylesheets
-      │   │   ├── login.jsx      # Login page
-      │   │   ├── home.jsx       # Home page contains the main app
-  ```
-## ⚙️ Endpoints
-  ### Api Routes
-  - /api/login: logs in the user
-  - /api/register: registers an user
-  - /api/store: Store chat messages.
-  - /api/retrieve: Retrieve chat history.
-  - /api/prevchats: Fetch user’s recent chats.
-  - /api/search: search an user
+>A real-time chat application built with React.js frontend and Node.js backend, featuring secure end-to-end encryption using ECDH key exchange and AES-GCM encryption.
 
 ## 📸 Screenshots
    ![Screenshot 2025-01-17 102949](https://github.com/user-attachments/assets/3934e654-d7ad-4a1c-975f-593e12101e8d)
@@ -84,36 +12,28 @@
    ![Screenshot 2025-01-17 103359](https://github.com/user-attachments/assets/f8f824ae-f4d8-4182-bf48-2592575641cd)
    ![Screenshot 2025-01-17 103417](https://github.com/user-attachments/assets/0945c48c-1e97-422c-a892-3fa285e1ea9c)
 
-## 🛠️ Future Improvements
-- Group chats and file sharing.
-- adding encryption for messages to improve security
-- Deployment on cloud platforms like AWS/GCP.
-# Chat Application with End-to-End Encryption
-
-A real-time chat application built with React.js frontend and Node.js backend, featuring secure end-to-end encryption using ECDH key exchange and AES-GCM encryption.
-
 ## 🚀 Features
 
 ### Security Features
-- **🔐 End-to-End Encryption**: Messages are encrypted using ECDH + AES-GCM
-- **🔑 Secure Key Management**: Private keys encrypted with password-derived master keys
-- **🧂 Salt-based Encryption**: Random salts for enhanced security
-- **🔒 Hashed Passwords**: Passwords stored as bcrypt hashes in database
-- **👁️ Show/Hide Password**: User-friendly password visibility toggle
+>- **🔐 End-to-End Encryption**: Messages are encrypted using ECDH + AES-GCM
+>- **🔑 Secure Key Management**: Private keys encrypted with password-derived master keys
+>- **🧂 Salt-based Encryption**: Random salts for enhanced security
+>- **🔒 Hashed Passwords**: Passwords stored as bcrypt hashes in database
+>- **👁️ Show/Hide Password**: User-friendly password visibility toggle
 
 ### Communication Features
-- **💬 Real-time Messaging**: Instant message delivery using Socket.IO
-- **👥 Multi-user Support**: Search and chat with multiple users
-- **📱 Responsive Design**: Works on desktop and mobile devices
-- **🔄 Persistent Sessions**: Login state maintained across browser sessions
-- **📝 Chat History**: Previous conversations stored and retrievable
+>- **💬 Real-time Messaging**: Instant message delivery using Socket.IO
+>- **👥 Multi-user Support**: Search and chat with multiple users
+>- **📱 Responsive Design**: Works on desktop and mobile devices
+>- **🔄 Persistent Sessions**: Login state maintained across browser sessions
+>- **📝 Chat History**: Previous conversations stored and retrievable
 
 ### Technical Features
-- **🏗️ Scalable Architecture**: Separate frontend and backend services
-- **🐳 Docker Database**: PostgreSQL database containerized with Docker
-- **🌐 CORS Enabled**: Cross-origin resource sharing configured
-- **📊 Real-time Status**: Online/offline status tracking
-- **🔧 Environment Configuration**: Configurable via environment variables
+>- **🏗️ Scalable Architecture**: Separate frontend and backend services
+>- **🐳 Docker Database**: PostgreSQL database containerized with Docker
+>- **🌐 CORS Enabled**: Cross-origin resource sharing configured
+>- **📊 Real-time Status**: Online/offline status tracking
+>- **🔧 Environment Configuration**: Configurable via environment variables
 
 ## 🛠️ Technology Stack
 
