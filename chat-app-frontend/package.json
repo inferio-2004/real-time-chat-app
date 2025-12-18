@@ -4,10 +4,15 @@
   "private": true,
   "dependencies": {
     "@chatscope/chat-ui-kit-react": "^2.0.3",
+    "@noble/hashes": "^2.0.1",
     "@testing-library/react": "^13.4.0",
     "axios": "^1.7.9",
+    "buffer": "^6.0.3",
     "cra-template": "1.2.0",
     "crypto-browserify": "^3.12.1",
+    "crypto-js": "^4.2.0",
+    "elliptic": "^6.6.1",
+    "nanoid": "^5.1.6",
     "path-browserify": "^1.0.1",
     "react": "^18.0.0",
     "react-app-polyfill": "^3.0.0",
@@ -23,8 +28,10 @@
     "web-vitals": "^4.2.4"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
+    "start": "powershell Copy-Item ../.env .env -Force && react-scripts start",
+    "start:3002": "powershell Copy-Item ../.env .env -Force && powershell \"$env:PORT=3002; react-scripts start\"",
+    "start:3003": "powershell Copy-Item ../.env .env -Force && powershell \"$env:PORT=3003; react-scripts start\"",
+    "build": "powershell Copy-Item ../.env .env -Force && react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },

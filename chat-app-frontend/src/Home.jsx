@@ -1,6 +1,6 @@
 import React,{useEffect, useState, useRef} from 'react';
 import './App.css';
-import { chkstatus,sendMessage,registertag,disconnect,eventEmitter } from './client_socket.js';
+import { chkstatus,sendMessage,registertag,disconnect,eventEmitter,computeSharedSecret,decryptMessage,encryptMessage,generateECDHKeyPair } from './client_socket.js';
 import axios from 'axios';
 import { useNavigate } from "react-router-dom";
 import {
@@ -25,13 +25,97 @@ const Home = () => {
         const storedUser = localStorage.getItem('user');
         return storedUser ? JSON.parse(storedUser).tag : '';
     });
+    
+    const [privateKey, setPrivateKey] = useState(() => {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            const user = JSON.parse(storedUser);
+            // Try to get from user data first, then sessionStorage
+            return user.privateKey || sessionStorage.getItem(`privateKey_${user.tag}`) || null;
+        }
+        return null;
+    });
+    
+    // Function to regenerate keys if missing
+    const regenerateKeysIfMissing = async () => {
+        const storedUser = localStorage.getItem('user');
+        if (!storedUser) {
+            console.log('No user data found, redirecting to login');
+            navigate('/');
+            return null;
+        }
+        
+        const user = JSON.parse(storedUser);
+        let currentPrivateKey = privateKey || user.privateKey || sessionStorage.getItem(`privateKey_${user.tag}`);
+        
+        if (!currentPrivateKey) {
+            console.log('Private key missing, regenerating keys for session...');
+            
+            // Generate new key pair for this session
+            const { privateKey: newPrivateKey, publicKey: newPublicKey } = generateECDHKeyPair();
+            
+            // Update the user's public key in the database
+            try {
+                const response = await axios.post(`${process.env.REACT_APP_API_BASE}/api/update-public-key`, {
+                    tag: user.tag,
+                    publicKey: newPublicKey
+                });
+                
+                if (response.data.success) {
+                    // Store the new private key in localStorage and sessionStorage
+                    const updatedUser = { ...user, privateKey: newPrivateKey };
+                    localStorage.setItem('user', JSON.stringify(updatedUser));
+                    sessionStorage.setItem(`privateKey_${user.tag}`, newPrivateKey);
+                    setPrivateKey(newPrivateKey);
+                    
+                    console.log('Keys regenerated successfully. Note: Old messages cannot be decrypted.');
+                    alert('Keys regenerated for security. You cannot decrypt old messages, but new messages will work.');
+                    
+                    return newPrivateKey;
+                } else {
+                    console.error('Failed to update public key in database');
+                    return null;
+                }
+            } catch (error) {
+                console.error('Error updating public key:', error);
+                return null;
+            }
+        }
+        
+        return currentPrivateKey;
+    };
+    
+    const [searchResult, setSearchResult] = useState(null); // Store search results with public key
     const [IsCycleRunning,SetIsCycleRunning]=useState(false);
     const [convos,setConvos]=useState([]);
     const navigate = useNavigate();
     const isConnected = useRef(false);
     const activetagRef = useRef('');
     useEffect(() => {
-
+        console.log('Home useEffect - Current privateKey state:', privateKey);
+        console.log('Home useEffect - LocalStorage user:', localStorage.getItem('user'));
+        
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            const user = JSON.parse(storedUser);
+            console.log('Home useEffect - SessionStorage privateKey:', sessionStorage.getItem(`privateKey_${user.tag}`));
+        }
+        
+        // Check if private key is missing and regenerate if needed
+        const checkAndRegenerateKeys = async () => {
+            if (!privateKey) {
+                console.log('Private key missing, attempting to regenerate...');
+                const newPrivateKey = await regenerateKeysIfMissing();
+                if (!newPrivateKey) {
+                    console.log('Failed to regenerate keys, redirecting to login');
+                    navigate('/');
+                    return;
+                }
+            }
+        };
+        
+        checkAndRegenerateKeys();
+        
         //connect to server on loggin in
         const connectToSocket = async () => {
             console.log('Connecting to socket server...');
@@ -48,7 +132,7 @@ const Home = () => {
             console.log('getting previous chats');
             try{
                 console.log(tag);
-                const r=await axios.get('http://localhost:3000/api/prevchats',{params:{tag:tag}});
+                const r=await axios.get(`${process.env.REACT_APP_API_BASE}/api/prevchats`,{params:{tag:tag}});
                 console.log(r.data);
                 setConvos(r.data);
             }catch(err){
@@ -93,6 +177,30 @@ const Home = () => {
         };
     
     }, []);
+    
+    // Update private key when sessionStorage changes (after login)
+    useEffect(() => {
+        const updatePrivateKey = () => {
+            const storedUser = localStorage.getItem('user');
+            if (storedUser) {
+                const user = JSON.parse(storedUser);
+                const key = sessionStorage.getItem(`privateKey_${user.tag}`);
+                if (key && key !== privateKey) {
+                    setPrivateKey(key);
+                    console.log('Private key updated from sessionStorage');
+                }
+            }
+        };
+
+        // Check immediately
+        updatePrivateKey();
+        
+        // Check periodically (in case sessionStorage is updated)
+        const interval = setInterval(updatePrivateKey, 1000);
+        
+        return () => clearInterval(interval);
+    }, [privateKey]);
+    
     const [search_tag,setSearchTag]=useState('');
     const [Activetag,setActiveTag]=useState('');
     const [unreadMessages, setUnreadMessages] = useState({});
@@ -129,11 +237,18 @@ const Home = () => {
             setDisplay(true);
             e.preventDefault();
             try {
-                const response = await axios.post('http://localhost:3000/api/search', { tag: search_tag });
+                const response = await axios.post(`${process.env.REACT_APP_API_BASE}/api/search`, { tag: search_tag });
                 
-                // If success, display success message and any other data
+                // If success, display success message and store result with public key
                 if (response.data.success) {
                     setUser(`${response.data.uname}`);
+                    // Store search result with public key for E2E encryption
+                    setSearchResult({
+                        username: response.data.uname,
+                        tag: search_tag,
+                        publicKey: response.data.publicKey
+                    });
+                    console.log('User found with public key:', response.data.publicKey ? 'Yes' : 'No');
                 }
             } catch (err) {
                 // Display the error message based on the response status
@@ -145,6 +260,7 @@ const Home = () => {
                     // Network error or no response from the server
                     setUser('Error: Network or Server not responding');
                 }
+                setSearchResult(null); // Clear search result on error
             }
         }
     };
@@ -158,10 +274,120 @@ const Home = () => {
             unreadMessages[userid]=false;
         }
         chkstatus({sender:tag,receiver:(userid)?userid:search_tag});
+        
         try{
-        const response=await axios.get('http://localhost:3000/api/retrieve',{params:{sender:tag,receiver:(userid)?userid:activetagRef.current}});
-        console.log('Chat with user:',user,' tag:',userid);
-        setMessages(response.data);
+            // Ensure private key is available before attempting to decrypt messages
+            let currentPrivateKey = privateKey;
+            console.log('=== DECRYPTION DEBUGGING ===');
+            console.log('Initial privateKey state:', privateKey);
+            
+            if (!currentPrivateKey) {
+                console.log('Private key missing, attempting to regenerate...');
+                currentPrivateKey = await regenerateKeysIfMissing();
+                
+                if (!currentPrivateKey) {
+                    console.error('Failed to regenerate private key');
+                    setMessages([]);
+                    alert('Failed to restore encryption keys. Please log out and log in again.');
+                    return;
+                }
+            }
+            
+            console.log('Final currentPrivateKey for decryption:', currentPrivateKey ? 'Present' : 'Missing');
+            
+            const response=await axios.get(`${process.env.REACT_APP_API_BASE}/api/retrieve`,{params:{sender:tag,receiver:(userid)?userid:activetagRef.current}});
+            console.log('Chat with user:',user,' tag:',userid);
+            console.log('Retrieved messages:', response.data);
+            
+            // Decrypt all retrieved messages
+            const decryptedMessages = [];
+            
+            // Get the conversation partner's public key once
+            let conversationPartnerKey = null;
+            const conversationPartnerTag = userid || search_tag;
+            
+            try {
+                const keyResponse = await axios.post(`${process.env.REACT_APP_API_BASE}/api/search`, {
+                    tag: conversationPartnerTag
+                });
+                
+                if (keyResponse.data.success && keyResponse.data.publicKey) {
+                    conversationPartnerKey = keyResponse.data.publicKey;
+                    console.log('Retrieved conversation partner public key for:', conversationPartnerTag);
+                } else {
+                    console.error('Failed to get conversation partner public key for:', conversationPartnerTag);
+                }
+            } catch (keyError) {
+                console.error('Error fetching conversation partner key:', keyError);
+            }
+            
+            if (!conversationPartnerKey) {
+                console.error('Cannot decrypt messages - no public key for conversation partner');
+                setMessages([]);
+                return;
+            }
+            
+            for (const msg of response.data) {
+                try {
+                    console.log('=== PROCESSING MESSAGE ===');
+                    console.log('Raw message from DB:', msg);
+                    console.log('Message content type:', typeof msg.content);
+                    console.log('Message content value:', msg.content);
+                    console.log('Content is null/undefined?', !msg.content || msg.content === null || msg.content === undefined);
+                    
+                    // Skip messages with no content (old/corrupted messages)
+                    if (!msg.content || msg.content === null || msg.content === undefined) {
+                        console.warn('Skipping message with no content:', msg);
+                        decryptedMessages.push({
+                            ...msg,
+                            text: '[Message content missing - may be from before encryption was enabled]',
+                            isMine: msg.sender === tag
+                        });
+                        continue;
+                    }
+                    
+                    console.log('Computing shared secret with:', {
+                        hasPrivateKey: !!currentPrivateKey,
+                        hasPublicKey: !!conversationPartnerKey,
+                        senderTag: tag,
+                        receiverTag: conversationPartnerTag
+                    });
+                    
+                    // Use the current private key (either from state or sessionStorage)
+                    const sharedSecret = computeSharedSecret(currentPrivateKey, conversationPartnerKey, tag, conversationPartnerTag);
+                    console.log('Shared secret computed:', sharedSecret ? 'Present' : 'Missing');
+                    
+                    if (sharedSecret) {
+                        console.log('Attempting to decrypt message content:', msg.content);
+                        const decryptedText = await decryptMessage(msg.content, sharedSecret);
+                        console.log('Decryption successful:', decryptedText);
+                        
+                        decryptedMessages.push({
+                            ...msg,
+                            text: decryptedText,
+                            isMine: msg.sender === tag
+                        });
+                        console.log('Successfully decrypted stored message');
+                    } else {
+                        console.error('Failed to compute shared secret for stored message');
+                        decryptedMessages.push({
+                            ...msg,
+                            text: '[Could not decrypt message - shared secret failed]',
+                            isMine: msg.sender === tag
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error decrypting stored message:', error);
+                    console.error('Failed message data:', msg);
+                    decryptedMessages.push({
+                        ...msg,
+                        text: '[Decryption failed - corrupted message]',
+                        isMine: msg.sender === tag
+                    });
+                }
+            }
+            
+            setMessages(decryptedMessages);
         }catch(err){
             console.error('error:',err);
         }
@@ -199,56 +425,140 @@ const Home = () => {
     //function to handle sending a message
     const handleSendMessage=async ()=>{
         console.log('Sending message:',message);
+        console.log('Current private key:', privateKey ? 'Present' : 'Missing');
+        console.log('Active tag:', activetagRef.current);
+        
+        if (!privateKey) {
+            console.error('Cannot send message: Private key not available');
+            alert('Error: Private key not found. Please log in again.');
+            return;
+        }
+        
         try{
-            //sends the message to the Socket server
-            const response = await sendMessage({  message:message,to:activetagRef.current,from: tag,fromname:username});
+            // Get receiver's public key from search result or fetch it
+            let receiverPublicKey = searchResult?.publicKey;
+            if (!receiverPublicKey) {
+                console.log('Fetching receiver public key for:', activetagRef.current);
+                // Fetch receiver's public key if not available
+                const keyResponse = await axios.post(`${process.env.REACT_APP_API_BASE}/api/search`, {
+                    tag: activetagRef.current
+                });
+                if (keyResponse.data.success) {
+                    receiverPublicKey = keyResponse.data.publicKey;
+                    console.log('Retrieved receiver public key:', receiverPublicKey ? 'Present' : 'Missing');
+                }
+            }
+            
+            if (!receiverPublicKey) {
+                console.error('Cannot send message: Receiver public key not found');
+                alert('Error: Cannot encrypt message for this user');
+                return;
+            }
+            
+            console.log('Computing shared secret with keys:', {
+                hasPrivateKey: !!privateKey,
+                hasPublicKey: !!receiverPublicKey,
+                senderTag: tag,
+                receiverTag: activetagRef.current
+            });
+            
+            // Compute shared secret and encrypt message
+            const sharedSecret = computeSharedSecret(privateKey, receiverPublicKey, tag, activetagRef.current);
+            console.log('Shared secret computed:', sharedSecret ? 'Present' : 'Missing');
+            
+            if (!sharedSecret) {
+                console.error('Cannot send message: Failed to compute shared secret');
+                alert('Error: Failed to encrypt message');
+                return;
+            }
+            
+            const encryptedMessage = await encryptMessage(message, sharedSecret);
+            
+            //sends the encrypted message to the Socket server
+            const response = await sendMessage({  
+                encryptedMessage: encryptedMessage,
+                to: activetagRef.current,
+                from: tag,
+                fromname: username
+            });
+            
             if(response.success){
                 console.log('Message',message,'sent successfully');
-            }
-            try{
-                //if successfully sent to server store it in db
-                const time=setTimestamp(Date.now());
-                const res=await axios.post('http://localhost:3000/api/store',
-                    {
-                        sender:tag,
-                        receiver:(activetagRef.current)?activetagRef.current:Activetag,
-                        content:message,
-                        isread:true,
-                        time:time
-                    }
-                );
-                console.log(res.data);
-            }catch(err){
-                console.log("failed to store message");
+                
+                // Store the encrypted message in database
+                try{
+                    const time=setTimestamp(Date.now());
+                    const res=await axios.post(`${process.env.REACT_APP_API_BASE}/api/store`,
+                        {
+                            sender:tag,
+                            receiver:(activetagRef.current)?activetagRef.current:Activetag,
+                            content:encryptedMessage, // Store encrypted content
+                            isread:true,
+                            time:time
+                        }
+                    );
+                    console.log(res.data);
+                }catch(err){
+                    console.log("failed to store message");
+                }
+                
+                //display the plaintext message in the chat window
+                setMessages((prevMessages)=>[...prevMessages,{id:Date.now(),text:message,isMine:true}]);
+                console.log(messages);
+                setMessage('');
             }
         }catch(err){
             console.log('Failed to send message:',err);
         }
-        //display the message in the chat window
-        setMessages((prevMessages)=>[...prevMessages,{id:Date.now(),text:message,isMine:true}]);
-        console.log(messages);
-        setMessage('');
     };
 
-    //function to receive message from receiver
+    //function to receive message from receiver  
     const handleRecieveMessage=async (response)=>{
         console.log(response.from);
         console.log(Activetag);
         console.log(response.from===activetagRef.current);
-        //if received message is from the receiver we are chatting to currently
-        if(response.from===activetagRef.current){
-            //display the message
-            console.log('Received message:',response.txt);
-            setMessages((prevMessages) => [...prevMessages,{id:Date.now(),text:response.txt,isMine:false}]);
-        //when the message not from the receiver we are chatting to rn
-        }else{
-            //placement of the user name in the sidebar
-            setConvos((prevConvos)=>{
-                const updatedConvos=prevConvos.filter((convo)=>convo.userid !== response.from);
-                updatedConvos.unshift({ username: response.fromname,userid:response.from }); // Add the user to the front
-                return updatedConvos;
+        
+        try {
+            // Get sender's public key to decrypt message
+            const senderKeyResponse = await axios.post(`${process.env.REACT_APP_API_BASE}/api/search`, {
+                tag: response.from
             });
-            setUnreadMessages(prev =>({...prev,[response.from]:true}));
+            
+            if (senderKeyResponse.data.success && senderKeyResponse.data.publicKey) {
+                // Compute shared secret and decrypt message
+                const sharedSecret = computeSharedSecret(privateKey, senderKeyResponse.data.publicKey, tag, response.from);
+                const decryptedMessage = await decryptMessage(response.txt, sharedSecret);
+                
+                console.log('Decrypted message:', decryptedMessage);
+                
+                //if received message is from the receiver we are chatting to currently
+                if(response.from===activetagRef.current){
+                    //display the decrypted message
+                    setMessages((prevMessages) => [...prevMessages,{id:Date.now(),text:decryptedMessage,isMine:false}]);
+                //when the message not from the receiver we are chatting to rn
+                }else{
+                    //placement of the user name in the sidebar
+                    setConvos((prevConvos)=>{
+                        const updatedConvos=prevConvos.filter((convo)=>convo.userid !== response.from);
+                        updatedConvos.unshift({ username: response.fromname,userid:response.from }); // Add the user to the front
+                        return updatedConvos;
+                    });
+                    // Mark as unread
+                    setUnreadMessages((prev) => ({ ...prev, [response.from]: true }));
+                }
+            } else {
+                console.error('Cannot decrypt message: Sender public key not found');
+                // Display encrypted message as fallback
+                if(response.from===activetagRef.current){
+                    setMessages((prevMessages) => [...prevMessages,{id:Date.now(),text:'[Encrypted message - cannot decrypt]',isMine:false}]);
+                }
+            }
+        } catch (error) {
+            console.error('Error decrypting message:', error);
+            // Display error message as fallback
+            if(response.from===activetagRef.current){
+                setMessages((prevMessages) => [...prevMessages,{id:Date.now(),text:'[Message decryption failed]',isMine:false}]);
+            }
         }
     };
     
@@ -306,9 +616,10 @@ const Home = () => {
                 <ConversationList>
                     <p>Your Chats:</p>
                     {
-                        convos.map((convo)=>{
+                        convos.map((convo, index)=>{
                             return(
                                 <Conversation 
+                                    key={convo.userid || index}
                                     name={convo.username}
                                     onClick={()=>{handleChat(convo.userid,convo.username)}}
                                     unreadDot={unreadMessages[convo.userid]}
@@ -342,9 +653,9 @@ const Home = () => {
                     </ConversationHeader>
                     <div className="chat-area">
                         <div className="chat-box">
-                            {messages.map((msg) => (
+                            {messages.map((msg, index) => (
                                
-                               <p className={`message ${msg.isMine ? 'from-me' : 'from-them'}`}>
+                               <p key={msg.id || index} className={`message ${msg.isMine ? 'from-me' : 'from-them'}`}>
                                 {msg.text}
                                 <span className="timestamp">{(msg.id)?setTimestamp(msg.id):msg.timestamp}</span>
                                 </p>

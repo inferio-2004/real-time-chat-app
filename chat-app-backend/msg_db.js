@@ -2,11 +2,11 @@ const express=require('express');
 const {Pool}=require('pg');
 const router=express.Router();
 const pool=new Pool({
-    user: "postgres",
-    host: "localhost",
-    database: "chat_app_db",
-    password: "mysecretpassword",
-    port: 5432,
+    user: process.env.DB_USER || "postgres",
+    host: process.env.DB_HOST || "localhost",
+    database: process.env.DB_NAME || "chat_app_db",
+    password: process.env.DB_PASSWORD || "mysecretpassword",
+    port: process.env.DB_PORT || 5432,
 });
 
 //storing msg
@@ -43,8 +43,8 @@ router.get('/retrieve',async (req,response)=>{
         for(const msg of res.rows){
             response_msg.push(
                 {
-                    text:msg.content,
-                    isMine:msg.sender===sender,
+                    content:msg.content,  // Changed from 'text' to 'content' to match frontend expectation
+                    sender:msg.sender,    // Added sender field for isMine calculation
                     timestamp:msg.timestamp,
                 }
             );

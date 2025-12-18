@@ -1,5 +1,6 @@
 const express=require('express');
 const cors=require('cors');
+require('dotenv').config({ path: '../.env' });
 const app=express();
 const login_register=require('./login_register');
 const search=require('./search'); //search users
@@ -12,7 +13,7 @@ app.use(express.json());
 app.use('/api',login_register);
 app.use('/api',search);
 app.use('/api',db);
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.BACKEND_PORT;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
